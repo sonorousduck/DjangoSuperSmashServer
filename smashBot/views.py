@@ -3,6 +3,7 @@ from django.http import JsonResponse, FileResponse
 import json
 import numpy as np
 import io
+import os
 from numpy import unicode
 from collections import deque
 from tensorflow.keras.models import Sequential, clone_model
@@ -90,6 +91,10 @@ async def postState(request):
         dones = request.POST['dones']
         agent = request.POST['agent']
         
+        overallReward = 0
+        for reward in rewards:
+            overallReward += reward
+        print(overallReward)
 
         for i in range(len(states)):
             add_experience(states[i], actions[i], rewards[i], nextStates[i], dones[i], agent) 
@@ -100,6 +105,15 @@ async def postState(request):
         
         agentMemory = Memory.objects.filter(agent=agent)
         agentHyperparameters = AgentHyperparameters.objects.filter(agent=agent)
+        shouldSaveAnyways = False
+
+        if not os.path.exists('bestmodel.hdf5'):
+            model.load_weights('recentweights.hdf5') 
+            agentMemory.bestReward = overallReward
+            shouldSaveAnyways = True
+        else:
+            model.load_weights('bestmodel.hdf5')
+        
 
         memory = Memory(100000)
         memory.setStates(json.loads(agentMemory.states))
@@ -108,8 +122,50 @@ async def postState(request):
         memory.setNextStates(json.loads(agentMemory.next_states))
         memory.setDones(json.loads(agentmemory.dones))
 
-        minibatch = random.sample(self.memory, 
+        minibatch = random.sample(self.memory, agentHyperparameters.batch_size)
+        states = []
+        actions = []
+        rewards = []
+        next_states = []
+        dones = []
 
+
+        for state, action, reward, next_state, done in minibatch:
+            states.append(state)
+            actions.append(action)
+            rewards.append(reward)
+            next_states.append(next_state)
+            dones.append(done)
+        states = np.asarray(states).astype("float32")
+        actions = np.asarray(actions)
+        rewards = np.asarray(rewards)
+        next_states = np.asarray(next_states).astype("float32")
+        dones = np.asarray(dones)
+
+        labels = model.predict(states)
+        next_state_values = model.predict(next_states)
+
+        for i in range(agentHyperparameters.batch_size):
+            action = actions[i]
+            labels[i][action] = rewards[i] + (not dones[i] * agentHyperparameters.gamma * max(next_state_values[i]))
+
+        model.fit(x=states, y=labels, batch_size=agentHyperparameters.batch_size, epochs=10, verbose=1)
+        agentHyperparameters.learns += 1
+
+
+        if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
+            agentHyperparameters.epsilon *= agentHyperparameters.epsilon_decay
+        agentHyperparameters.epsilon = max(agentHyperparameters.epsilon, agentHyperparameters.epsilon_min)
+
+    
+        model.save_weights('recentweights.hdf5')
+
+        if overallReward > savedBestReward or shouldSaveAnyways:
+            model.save_weights('bestmodel.hdf5')
+            agentMemory.bestReward = overallReward
+
+        agentHyperparameters.save()
+        agentMemory.save()
 
 
 async def getAgent(request):
@@ -123,9 +179,5 @@ async def getAgent(request):
     response['Access-Control-Allow-Origin'] = '*'
 
     return response
-    
-    #model = {}
-    #response = JsonResponse({'model': model})
-
 
 

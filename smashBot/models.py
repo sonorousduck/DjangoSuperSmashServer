@@ -12,7 +12,7 @@ class AgentHyperparameters(models.Model):
     learns = models.IntegerField(default=0)
     averageRewardList = models.JSONField()
     agent = models.IntegerField()
-
+    bestReward = models.DecimalField(max_digits=40, decimal_places=20)
 
 
 class Memory(models.Model):
@@ -23,4 +23,5 @@ class Memory(models.Model):
     rewards = models.JSONField()
     next_states = models.JSONField()
     dones = models.JSONField()
+    bestReward = models.IntegerField()
 
