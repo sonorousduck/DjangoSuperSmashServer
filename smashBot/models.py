@@ -1,5 +1,5 @@
 from django.db import models
-
+import json
 # Create your models here.
 
 class AgentHyperparameters(models.Model):
@@ -10,7 +10,7 @@ class AgentHyperparameters(models.Model):
     learning_rate = models.DecimalField(max_digits=10, decimal_places=9, default=0.0025)
     batch_size = models.IntegerField(default=256)
     learns = models.IntegerField(default=0)
-    averageRewardList = models.JSONField()
+    averageRewardList = models.JSONField(default={})
     agent = models.IntegerField()
     bestReward = models.DecimalField(max_digits=40, decimal_places=20)
 
@@ -18,10 +18,9 @@ class AgentHyperparameters(models.Model):
 class Memory(models.Model):
     max_memory_len = models.IntegerField(default=100000)
     agent = models.IntegerField()
-    states = models.JSONField()
-    actions = models.JSONField()
-    rewards = models.JSONField()
-    next_states = models.JSONField()
-    dones = models.JSONField()
-    bestReward = models.IntegerField()
+    states = models.JSONField(default={})
+    actions = models.JSONField(default={})
+    rewards = models.JSONField(default={})
+    next_states = models.JSONField(default={})
+    dones = models.JSONField(default={})
 

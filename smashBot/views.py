@@ -160,9 +160,9 @@ async def postState(request):
     
         model.save_weights('recentweights.hdf5')
 
-        if overallReward > savedBestReward or shouldSaveAnyways:
+        if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
             model.save_weights('bestmodel.hdf5')
-            agentMemory.bestReward = overallReward
+            agentHyperparameters.bestReward = overallReward
 
         agentHyperparameters.save()
         agentMemory.save()
