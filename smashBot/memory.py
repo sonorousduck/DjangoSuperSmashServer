@@ -14,15 +14,19 @@ class Memory:
     def setStates(self, states):
         for state in states:
             self.states.append(state)
+
     def setActions(self, actions):
         for action in actions:
             self.actions.append(action)
+
     def setRewards(self, rewards):
         for reward in rewards:
             self.rewards.append(reward)
+
     def setNextStates(self, next_states):
         for next_state in next_states:
             self.next_state.append(next_state)
+
     def setDones(self, dones):
         for done in dones:
             self.done.append(done)
