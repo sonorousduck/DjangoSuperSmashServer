@@ -1,5 +1,5 @@
 from collections import deque
-from .models import AgentHyperParameters, Memory 
+from .models import AgentHyperparameters, Memory 
 import json
 
 

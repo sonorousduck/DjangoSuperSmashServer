@@ -13,7 +13,7 @@ import tensorflow as tf
 import numpy as np
 import random
 from smashBot.agent import Agent
-from .models import AgentHyperParameters, Memory 
+from .models import AgentHyperparameters, Memory 
 
 
 # Create your views here.
