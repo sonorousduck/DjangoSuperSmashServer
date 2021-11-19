@@ -1,21 +1,19 @@
-from asgiref.sync import sync_to_async, async_to_sync
+from collections import deque
+
 from django.shortcuts import render
-from django.http import JsonResponse, FileResponse, Http404, HttpResponse
+from django.http import JsonResponse, FileResponse, Http404
 import json
 import numpy as np
-import io
 import os
 
 from django.views.decorators.csrf import csrf_exempt
-from numpy import unicode
-from collections import deque
 from tensorflow.keras.models import Sequential, clone_model
 from tensorflow.keras.layers import Dense, Dropout, Input, LSTM, Embedding, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 import numpy as np
 import random
-from smashBot.agent import Agent
+from .memory import AgentMemory
 from .models import AgentHyperparameters, Memory
 
 
@@ -23,12 +21,20 @@ from .models import AgentHyperparameters, Memory
 
 
 def add_experience(state, action, reward, next_state, done, agent):
-    agentMemory = Memory.objects.filter(agent=agent)
+    agentMemory = Memory.objects.get(agent=agent)
     agentMemoryStates = json.loads(agentMemory.states)
     agentMemoryActions = json.loads(agentMemory.actions)
     agentMemoryRewards = json.loads(agentMemory.rewards)
     agentMemoryNextStates = json.loads(agentMemory.next_states)
     agentMemoryDone = json.loads(agentMemory.dones)
+
+    for i in range(len(state)):
+        agentMemoryStates.insert(0, state[i])
+        agentMemoryActions.insert(0, action[i])
+        agentMemoryRewards.insert(0, reward[i])
+        agentMemoryNextStates.insert(0, next_state[i])
+        agentMemoryDone.insert(0, done[i])
+
 
     while len(agentMemoryStates) >= agentMemory.max_memory_len:
         agentMemoryStates.pop()
@@ -41,11 +47,6 @@ def add_experience(state, action, reward, next_state, done, agent):
     while len(agentMemoryDone) >= agentMemory.max_memory_len:
         agentMemoryDone.pop()
 
-    agentMemoryStates.insert(0, state)
-    agentMemoryActions.insert(0, action)
-    agentMemoryRewards.insert(0, reward)
-    agentMemoryNextStates.insert(0, next_state)
-    agentMemoryDone.insert(0, done)
 
     agentMemory.states = json.dumps(agentMemoryStates)
     agentMemory.actions = json.dumps(agentMemoryActions)
@@ -71,7 +72,7 @@ def create_model():
     model.add(Dense(512, activation="swish"))
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
-    model.add(Dense(26, activation="softmax"))
+    model.add(Dense(27, activation="softmax"))
     optimizer = Adam(0.0025)
     model.compile(optimizer, loss='mse')
     return model
@@ -80,34 +81,39 @@ def create_model():
 def index(request):
     return render(request, "smashBot/index.html")
 
-@sync_to_async
-@csrf_exempt
-@async_to_sync
-async def postState(request):
-    # This is where the training logic is going to go
 
-    if (request.POST):
-        states = request.POST['states']
-        actions = request.POST['actions']
-        rewards = request.POST['rewards']
-        nextStates = request.POST['nextStates']
-        dones = request.POST['dones']
-        agent = request.POST['agent']
+@csrf_exempt
+def postState(request):
+    # This is where the training logic is going to go
+    # print(request)
+    data = json.loads(request.body)
+
+    if (request.method == 'POST'):
+
+        states = data['states']
+        actions = data['actions']
+        rewards = data['rewards']
+        nextStates = data['nextStates']
+        dones = data['dones']
+        agent = data['agent']
 
         overallReward = 0
         for reward in rewards:
             overallReward += reward
         print(overallReward)
 
-        for i in range(len(states)):
-            add_experience(states[i], actions[i], rewards[i], nextStates[i], dones[i], agent)
+        with open(f'smashBot/rewards{agent}.txt', 'a') as f:
+            f.write(str(overallReward) + '\n')
+
+
+        add_experience(states, actions, rewards, nextStates, dones, agent)
 
         print("States Added")
         print("Beginning Training")
         model = create_model()
 
-        agentMemory = Memory.objects.filter(agent=agent)
-        agentHyperparameters = AgentHyperparameters.objects.filter(agent=agent)
+        agentMemory = Memory.objects.get(agent=agent)
+        agentHyperparameters = AgentHyperparameters.objects.get(agent=agent)
         shouldSaveAnyways = False
 
         if not os.path.exists('bestweights.hdf5'):
@@ -116,16 +122,27 @@ async def postState(request):
                 agentMemory.bestReward = overallReward
             shouldSaveAnyways = True
         else:
-            model.load_weights('bestmodel.hdf5')
+            model.load_weights('bestweights.hdf5')
 
-        memory = Memory(100000)
-        memory.setStates(json.loads(agentMemory.states))
-        memory.setActions(json.loads(agentMemory.actions))
-        memory.setRewards(json.loads(agentMemory.rewards))
-        memory.setNextStates(json.loads(agentMemory.next_states))
-        memory.setDones(json.loads(agentMemory.dones))
+        # memory = AgentMemory(100000)
+        states = json.loads(agentMemory.states)
+        actions = json.loads(agentMemory.actions)
+        rewards = json.loads(agentMemory.rewards)
+        nextStates = json.loads(agentMemory.next_states)
+        dones = json.loads(agentMemory.dones)
+        # memory.setStates(json.loads(agentMemory.states))
+        # memory.setActions(json.loads(agentMemory.actions))
+        # memory.setRewards(json.loads(agentMemory.rewards))
+        # memory.setNextStates(json.loads(agentMemory.next_states))
+        # memory.setDones(json.loads(agentMemory.dones))
 
-        minibatch = random.sample(memory, agentHyperparameters.batch_size)
+        memoryDeque = deque(maxlen=100000)
+
+        for i in range(len(states)):
+            memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
+
+
+        minibatch = random.sample(memoryDeque, agentHyperparameters.batch_size)
         states = []
         actions = []
         rewards = []
@@ -147,11 +164,12 @@ async def postState(request):
         labels = model.predict(states)
         next_state_values = model.predict(next_states)
 
-        for i in range(agentHyperparameters.batch_size):
-            action = actions[i]
-            labels[i][action] = rewards[i] + (not dones[i] * agentHyperparameters.gamma * max(next_state_values[i]))
+        batchSize = min(agentHyperparameters.batch_size, len(rewards))
+        for i in range(batchSize):
+            action = actions[i] - 1
+            labels[i][action] = rewards[i] + (not dones[i] * float(agentHyperparameters.gamma) * max(next_state_values[i]))
 
-        model.fit(x=states, y=labels, batch_size=agentHyperparameters.batch_size, epochs=10, verbose=1)
+        model.fit(x=states, y=labels, batch_size=agentHyperparameters.batch_size, epochs=1, verbose=1)
         agentHyperparameters.learns += 1
 
         if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
@@ -161,13 +179,23 @@ async def postState(request):
         model.save_weights('recentweights.hdf5')
 
         if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
+            print(f"Saving model from agent {agentHyperparameters.agent}")
             model.save_weights('bestweights.hdf5')
             agentHyperparameters.bestReward = overallReward
 
         agentHyperparameters.save()
         agentMemory.save()
 
-        return HttpResponse( content_type = "application/json",status_code = 200)
+        json_response = [{'success': "Success!"}]
+        response = JsonResponse(json_response, safe=False)
+        response['Access-Control-Allow-Origin'] = '*'
+
+        return response
+    json_response = [{'failure': "Failed!"}]
+    response = JsonResponse(json_response, safe=False)
+    response['Access-Control-Allow-Origin'] = '*'
+
+    return response
 
 
 async def getAgent(request):
@@ -177,11 +205,11 @@ async def getAgent(request):
         if not os.path.exists('recentweights.hdf5'):
             raise Http404("File not yet created")
 
-        model = open('smashBot/recentweights.hdf5', 'rb')
+        model = open('recentweights.hdf5', 'rb')
         response = FileResponse(model)
         response['Access-Control-Allow-Origin'] = '*'
     else:
-        model = open('smashBot/bestweights.hdf5', 'rb')
+        model = open('bestweights.hdf5', 'rb')
         response = FileResponse(model)
         response['Access-Control-Allow-Origin'] = '*'
 

@@ -1,9 +1,9 @@
 from collections import deque
-from .models import AgentHyperparameters, Memory 
+from .models import AgentHyperparameters
 import json
 
 
-class Memory:
+class AgentMemory:
     def __init__(self, max_memory_len):
         self.states = deque(maxlen=max_memory_len)
         self.actions = deque(maxlen=max_memory_len)
