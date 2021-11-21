@@ -75,35 +75,54 @@ def create_model():
     model = Sequential()
     model.add(Input(44, ))
     model.add(Embedding(44, 128))
-    model.add(LSTM(128))
-    # model.add(LSTM(256, unroll=True))
-    model.add(Flatten())
+    model.add(LSTM(128, return_sequences=True))
+    model.add(LSTM(256))
     model.add(Dense(512, activation="swish"))
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
     model.add(Dense(1024, activation="swish"))
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
-    # model.add(Dense(512, activation="swish"))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.4))
+    model.add(Dense(512, activation="swish"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.4))
     model.add(Dense(27, activation="softmax"))
     optimizer = Adam(0.0025)
     model.compile(optimizer, loss='mse')
+    # model.summary()
     return model
+
+
+    # model = Sequential()
+    # model.add(Input(44, ))
+    # model.add(Embedding(44, 128))
+    # model.add(LSTM(128))
+    # # model.add(LSTM(256, unroll=True))
+    # model.add(Flatten())
+    # model.add(Dense(512, activation="swish"))
+    # model.add(BatchNormalization())
+    # model.add(Dropout(0.4))
+    # model.add(Dense(1024, activation="swish"))
+    # model.add(BatchNormalization())
+    # model.add(Dropout(0.4))
+    # # model.add(Dense(512, activation="swish"))
+    # # model.add(BatchNormalization())
+    # # model.add(Dropout(0.4))
+    # model.add(Dense(27, activation="softmax"))
+    # optimizer = Adam(0.0025)
+    # model.compile(optimizer, loss='mse')
+    # return model
 
 
 def index(request):
     return render(request, "smashBot/index.html")
 
 
-def train(request):
+def train(agent):
     # Add in agent and overall reward for both
-    print(request.GET['agent'])
     print("States Added")
     print("Beginning Training")
     model = create_model()
-    agent = request.GET['agent']
     # overallReward = 1000
     agentMemory = Memory.objects.get(agent=agent)
     agentHyperparameters = AgentHyperparameters.objects.get(agent=agent)
@@ -124,7 +143,7 @@ def train(request):
     dones = json.loads(agentMemory.dones)
 
 
-    memoryDeque = deque(maxlen=100000)
+    memoryDeque = deque(maxlen=10000)
 
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
@@ -153,11 +172,13 @@ def train(request):
 
     batchSize = min(agentHyperparameters.batch_size, len(rewards))
     for i in range(batchSize):
-        action = actions[i] - 1
+        action = actions[i]
         labels[i][action] = rewards[i] + (
             not dones[i] * float(agentHyperparameters.gamma) * max(next_state_values[i]))
 
-    model.fit(x=states, y=labels, batch_size=agentHyperparameters.batch_size, epochs=1, verbose=1)
+    # for i in range(len(states)):
+    #
+    model.fit(x=states, y=labels, epochs=10, verbose=1)
     agentHyperparameters.learns += 1
 
     if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
@@ -206,6 +227,7 @@ def postState(request):
 
 
         add_experience(states, actions, rewards, nextStates, dones, agent)
+        train(agent)
 
         json_response = [{'success': "Success!"}]
         response = JsonResponse(json_response, safe=False)
