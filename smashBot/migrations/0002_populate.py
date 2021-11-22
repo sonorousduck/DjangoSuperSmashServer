@@ -7,16 +7,16 @@ def populate_db(apps, schema_editor):
     AgentHyperParameters = apps.get_model("smashBot", "AgentHyperparameters")
     Memory = apps.get_model("smashBot", "Memory")
 
-    agent1parameters = AgentHyperParameters(agent=1, bestReward=0, epsilon=1)
+    # agent1parameters = AgentHyperParameters(agent=1, bestReward=0, epsilon=1)
     agent2parameters = AgentHyperParameters(agent=2, bestReward=0, epsilon=1)
 
-    agent1Memory = Memory(agent=1, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([[]]), dones=json.dumps([]))
+    # agent1Memory = Memory(agent=1, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([[]]), dones=json.dumps([]))
     agent2Memory = Memory(agent=2, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([]), dones=json.dumps([]))
 
-    agent1parameters.save()
+    # agent1parameters.save()
     agent2parameters.save()
 
-    agent1Memory.save()
+    # agent1Memory.save()
     agent2Memory.save()
 
 

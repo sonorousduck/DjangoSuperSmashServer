@@ -178,7 +178,7 @@ def train(agent):
 
     # for i in range(len(states)):
     #
-    model.fit(x=states, y=labels, epochs=10, verbose=1)
+    model.fit(x=states, y=labels, epochs=1, verbose=1)
     agentHyperparameters.learns += 1
 
     if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
