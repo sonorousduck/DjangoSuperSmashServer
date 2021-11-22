@@ -93,37 +93,16 @@ def create_model():
     return model
 
 
-    # model = Sequential()
-    # model.add(Input(44, ))
-    # model.add(Embedding(44, 128))
-    # model.add(LSTM(128))
-    # # model.add(LSTM(256, unroll=True))
-    # model.add(Flatten())
-    # model.add(Dense(512, activation="swish"))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.4))
-    # model.add(Dense(1024, activation="swish"))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.4))
-    # # model.add(Dense(512, activation="swish"))
-    # # model.add(BatchNormalization())
-    # # model.add(Dropout(0.4))
-    # model.add(Dense(27, activation="softmax"))
-    # optimizer = Adam(0.0025)
-    # model.compile(optimizer, loss='mse')
-    # return model
-
 
 def index(request):
     return render(request, "smashBot/index.html")
 
 
-def train(agent):
+def train(agent, overallReward):
     # Add in agent and overall reward for both
     print("States Added")
     print("Beginning Training")
     model = create_model()
-    # overallReward = 1000
     agentMemory = Memory.objects.get(agent=agent)
     agentHyperparameters = AgentHyperparameters.objects.get(agent=agent)
     shouldSaveAnyways = False
@@ -131,7 +110,7 @@ def train(agent):
     if not os.path.exists('bestweights.hdf5'):
         if os.path.exists('recentweights.hdf5'):
             model.load_weights('recentweights.hdf5')
-            # agentMemory.bestReward = overallReward
+            agentMemory.bestReward = overallReward
         shouldSaveAnyways = True
     else:
         model.load_weights('bestweights.hdf5')
@@ -156,29 +135,45 @@ def train(agent):
     dones = []
 
     for state, action, reward, next_state, done in minibatch:
-        states.append(state)
-        actions.append(action)
-        rewards.append(reward)
-        next_states.append(next_state)
-        dones.append(done)
-    states = np.asarray(states).astype("float32")
-    actions = np.asarray(actions)
-    rewards = np.asarray(rewards)
-    next_states = np.asarray(next_states).astype("float32")
-    dones = np.asarray(dones)
+        target = reward
 
-    labels = model.predict(states)
-    next_state_values = model.predict(next_states)
+        if not done:
+            target = reward + float(agentHyperparameters.gamma) * np.amax(model.predict(next_state)) - model.predict(state)[action]
 
-    batchSize = min(agentHyperparameters.batch_size, len(rewards))
-    for i in range(batchSize):
-        action = actions[i]
-        labels[i][action] = rewards[i] + (
-            not dones[i] * float(agentHyperparameters.gamma) * max(next_state_values[i]))
+            target_f = model.predict(state)
+            target_f[0][action] = target
+
+            model.fit(state, target_f, epochs=1, verbose=1)
+
+
+        # If Q-learning doesn't work well, use SARSA. I definitely wasn't doing either of these very correctly
+        # Q_s_t = model.predict(state)
+        #target = Q_s_t + agentHyperparameters.learning_rate(reward + float(agentHyperparameters.gamma) * model.predict(next_state) - Q_s_t)
+            
+
+       # states.append(state)
+       # actions.append(action)
+       # rewards.append(reward)
+       # next_states.append(next_state)
+       # dones.append(done)
+    #states = np.asarray(states).astype("float32")
+    #actions = np.asarray(actions)
+    #rewards = np.asarray(rewards)
+    #next_states = np.asarray(next_states).astype("float32")
+    #dones = np.asarray(dones)
+
+    # labels = model.predict(states)
+    # next_state_values = model.predict(next_states)
+
+    # batchSize = min(agentHyperparameters.batch_size, len(rewards))
+    # for i in range(batchSize):
+     #   action = actions[i]
+     #   labels[i][action] = rewards[i] + (
+     #       not dones[i] * float(agentHyperparameters.gamma) * max(next_state_values[i]))
 
     # for i in range(len(states)):
     #
-    model.fit(x=states, y=labels, epochs=1, verbose=1)
+    # model.fit(x=states, y=labels, epochs=1, verbose=1)
     agentHyperparameters.learns += 1
 
     if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
@@ -187,11 +182,10 @@ def train(agent):
 
     model.save_weights('recentweights.hdf5')
 
-    # if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
-    if True:
+    if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
         print(f"Saving model from agent {agentHyperparameters.agent}")
         model.save_weights('bestweights.hdf5')
-        # agentHyperparameters.bestReward = overallReward
+        agentHyperparameters.bestReward = overallReward
 
     agentHyperparameters.save()
     agentMemory.save()
@@ -227,7 +221,7 @@ def postState(request):
 
 
         add_experience(states, actions, rewards, nextStates, dones, agent)
-        train(agent)
+        train(agent, overallReward)
 
         json_response = [{'success': "Success!"}]
         response = JsonResponse(json_response, safe=False)
