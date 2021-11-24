@@ -4,11 +4,11 @@ import json
 
 class AgentHyperparameters(models.Model):
     epsilon = models.DecimalField(max_digits=20, decimal_places=18)
-    epsilon_decay = models.DecimalField(max_digits=10, decimal_places=8, default=0.9995)
+    epsilon_decay = models.DecimalField(max_digits=10, decimal_places=8, default=0.995)
     epsilon_min = models.DecimalField(max_digits=10, decimal_places=8, default=0.05)
     gamma = models.DecimalField(max_digits=5, decimal_places=4, default=0.95)
     learning_rate = models.DecimalField(max_digits=10, decimal_places=9, default=0.025)
-    batch_size = models.IntegerField(default=256)
+    batch_size = models.IntegerField(default=64)
     learns = models.IntegerField(default=0)
     averageRewardList = models.JSONField(default=dict)
     agent = models.IntegerField()
