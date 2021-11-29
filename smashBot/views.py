@@ -138,7 +138,8 @@ def train(agent, overallReward):
         target = reward
 
         if not done:
-            target = reward + float(agentHyperparameters.gamma) * np.amax(model.predict(next_state)) - model.predict(state)[action]
+            # I have changed this to np.max from amax, since you are trying to compare rewards
+            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state)) - model.predict(state)[action]
 
             target_f = model.predict(state)
             target_f[0][action] = target
