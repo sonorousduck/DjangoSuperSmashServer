@@ -16,7 +16,7 @@ class AgentHyperparameters(models.Model):
 
 
 class Memory(models.Model):
-    max_memory_len = models.IntegerField(default=50000)
+    max_memory_len = models.IntegerField(default=200000)
     agent = models.IntegerField()
     states = models.JSONField()
     actions = models.JSONField()

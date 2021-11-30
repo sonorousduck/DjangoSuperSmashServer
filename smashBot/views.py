@@ -130,7 +130,7 @@ def train(agent, overallReward):
     dones = json.loads(agentMemory.dones)
 
 
-    memoryDeque = deque(maxlen=10000)
+    memoryDeque = deque(maxlen=250000)
 
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
@@ -152,9 +152,11 @@ def train(agent, overallReward):
             # x = np.amax(model.predict(next_state))
             # y_state = model.predict(state)
             # y = y_state[action]
-            # print(np.amax(model.predict(next_state)))
+            # test = model.predict(next_state)
+            # test1 = test[0]
+            # print(np.max(model.predict(next_state)[0]))
             # print(model.predict(state)[action])
-            target = reward + float(agentHyperparameters.gamma) * np.amax(model.predict(next_state)[0])
+            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state)[0])
 
         target_f = model.predict(np.array(state))[0]
         target_f[action] = target
