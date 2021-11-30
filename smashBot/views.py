@@ -156,7 +156,10 @@ def train(agent, overallReward):
             # test1 = test[0]
             # print(np.max(model.predict(next_state)[0]))
             # print(model.predict(state)[action])
-            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state)[0])
+            next_state = np.array(state).reshape(-1, 44)
+            print(next_state)
+            print(len(next_state))
+            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state))
 
         target_f = model.predict(np.array(state))[0]
         target_f[action] = target
@@ -165,6 +168,9 @@ def train(agent, overallReward):
         target_f = target_f.reshape(1, -1)
         everyTarget.append(target_f)
         everyState.append(state)
+
+    print(everyState)
+    print(len(everyState))
 
         # print()
         # print(type(state))
