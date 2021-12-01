@@ -73,10 +73,13 @@ def add_experience(state, action, reward, next_state, done, agent):
 
 def create_model():
     model = Sequential()
-    model.add(Input(44, ))
-    model.add(Embedding(44, 128))
-    model.add(LSTM(128, return_sequences=True))
-    model.add(LSTM(256))
+    model.add(Input(26,))
+    #model.add(Embedding(44, 128))
+    #model.add(LSTM(128, return_sequences=True))
+    #model.add(LSTM(256))
+    model.add(Dense(128, activation="swish"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.4))
     model.add(Dense(512, activation="swish"))
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
@@ -135,7 +138,7 @@ def train(agent, overallReward):
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
 
-    batch_size = 64
+    batch_size = 256 
     minibatch = random.sample(memoryDeque, batch_size)
     # states = []
     # actions = []
@@ -156,28 +159,28 @@ def train(agent, overallReward):
             # test1 = test[0]
             # print(np.max(model.predict(next_state)[0]))
             # print(model.predict(state)[action])
-            next_state = np.array(state).reshape(-1, 44)
-            print(next_state)
-            print(len(next_state))
+            next_state = np.array(next_state)
+         #   print(next_state.shape)
+            next_state = next_state.reshape(1, -1)
+        #    print(next_state.shape)
+
             target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state))
 
-        target_f = model.predict(np.array(state))[0]
-        target_f[action] = target
         state = np.array(state)
         state = state.reshape(1, -1)
+        target_f = model.predict(np.array(state))[0]
+        target_f[action] = target
         target_f = target_f.reshape(1, -1)
-        everyTarget.append(target_f)
-        everyState.append(state)
+        #everyTarget.append(target_f)
+        #everyState.append(state)
 
-    print(everyState)
-    print(len(everyState))
 
         # print()
         # print(type(state))
         # print(type(target_f))
         # print(target_f)
 
-        # model.fit(state, target_f, epochs=1, verbose=1)
+        model.fit(state, target_f, epochs=1, verbose=1)
 
 
         # If Q-learning doesn't work well, use SARSA. I definitely wasn't doing either of these very correctly
@@ -190,7 +193,7 @@ def train(agent, overallReward):
        # rewards.append(reward)
        # next_states.append(next_state)
        # dones.append(done)
-    model.fit(everyState, everyTarget, epochs=1, verbose=1)
+    #model.fit(everyState, everyTarget, batch_size=1, epochs=10, verbose=1)
     #states = np.asarray(states).astype("float32")
     #actions = np.asarray(actions)
     #rewards = np.asarray(rewards)
@@ -221,7 +224,7 @@ def train(agent, overallReward):
         print(f"Saving model from agent {agentHyperparameters.agent}")
         model.save_weights('bestweights.hdf5')
         agentHyperparameters.bestReward = overallReward
-
+    
     agentHyperparameters.save()
     agentMemory.save()
 
