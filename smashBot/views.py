@@ -90,7 +90,7 @@ def create_model():
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
     model.add(Dense(30, activation="softmax"))
-    optimizer = Adam(0.025)
+    optimizer = Adam(0.00025)
     model.compile(optimizer, loss='mse')
     # model.summary()
     return model
@@ -138,7 +138,7 @@ def train(agent, overallReward):
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
 
-    batch_size = 256 
+    batch_size = 128 
     minibatch = random.sample(memoryDeque, batch_size)
     # states = []
     # actions = []
