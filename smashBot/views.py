@@ -219,6 +219,7 @@ def train(agent, overallReward):
     agentHyperparameters.epsilon = max(agentHyperparameters.epsilon, agentHyperparameters.epsilon_min)
 
     model.save_weights('recentweights.hdf5')
+    model.save_weights('bestweights.hdf5')
 
     if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
         print(f"Saving model from agent {agentHyperparameters.agent}")
