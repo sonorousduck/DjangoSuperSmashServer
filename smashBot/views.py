@@ -86,8 +86,8 @@ def create_model():
     model.add(Dense(512, activation="swish"))
     model.add(BatchNormalization())
     model.add(Dropout(0.4))
-    model.add(Dense(27, activation="softmax"))
-    optimizer = Adam(0.0025)
+    model.add(Dense(30, activation="softmax"))
+    optimizer = Adam(0.025)
     model.compile(optimizer, loss='mse')
     # model.summary()
     return model
@@ -97,6 +97,14 @@ def create_model():
 def index(request):
     return render(request, "smashBot/index.html")
 
+
+def test(request):
+    for i in range(50):
+        train(2, 1000)
+    json_response = [{'success': "Success!"}]
+    response = JsonResponse(json_response, safe=False)
+    response['Access-Control-Allow-Origin'] = '*'
+    return response
 
 def train(agent, overallReward):
     # Add in agent and overall reward for both
@@ -127,24 +135,41 @@ def train(agent, overallReward):
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
 
-    minibatch = random.sample(memoryDeque, agentHyperparameters.batch_size)
-    states = []
-    actions = []
-    rewards = []
-    next_states = []
-    dones = []
+    batch_size = 64
+    minibatch = random.sample(memoryDeque, batch_size)
+    # states = []
+    # actions = []
+    # rewards = []
+    # next_states = []
+    # dones = []
+    everyTarget = []
+    everyState = []
 
     for state, action, reward, next_state, done in minibatch:
         target = reward
 
         if not done:
-            # I have changed this to np.max from amax, since you are trying to compare rewards
-            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state)) - model.predict(state)[action]
+            # x = np.amax(model.predict(next_state))
+            # y_state = model.predict(state)
+            # y = y_state[action]
+            # print(np.amax(model.predict(next_state)))
+            # print(model.predict(state)[action])
+            target = reward + float(agentHyperparameters.gamma) * np.amax(model.predict(next_state)[0])
 
-            target_f = model.predict(state)
-            target_f[0][action] = target
+        target_f = model.predict(np.array(state))[0]
+        target_f[action] = target
+        state = np.array(state)
+        state = state.reshape(1, -1)
+        target_f = target_f.reshape(1, -1)
+        everyTarget.append(target_f)
+        everyState.append(state)
 
-            model.fit(state, target_f, epochs=1, verbose=1)
+        # print()
+        # print(type(state))
+        # print(type(target_f))
+        # print(target_f)
+
+        # model.fit(state, target_f, epochs=1, verbose=1)
 
 
         # If Q-learning doesn't work well, use SARSA. I definitely wasn't doing either of these very correctly
@@ -157,6 +182,7 @@ def train(agent, overallReward):
        # rewards.append(reward)
        # next_states.append(next_state)
        # dones.append(done)
+    model.fit(everyState, everyTarget, epochs=1, verbose=1)
     #states = np.asarray(states).astype("float32")
     #actions = np.asarray(actions)
     #rewards = np.asarray(rewards)
