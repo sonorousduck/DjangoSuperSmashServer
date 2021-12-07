@@ -73,23 +73,12 @@ def add_experience(state, action, reward, next_state, done, agent):
 
 def create_model():
     model = Sequential()
-    model.add(Input(44, ))
-    model.add(Embedding(44, 128))
-    model.add(LSTM(128, return_sequences=True))
-    model.add(LSTM(256))
-    model.add(Dense(512, activation="swish"))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.4))
-    model.add(Dense(1024, activation="swish"))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.4))
-    model.add(Dense(512, activation="swish"))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.4))
-    model.add(Dense(30, activation="softmax"))
-    optimizer = Adam(0.025)
+    model.add(Input(56,))
+    model.add(Dense(128, activation="tanh"))
+    model.add(Dense(128, activation="tanh"))
+    model.add(Dense(30, activation="linear"))
+    optimizer = Adam(lr=3e-4, decay=1e-5)
     model.compile(optimizer, loss='mse')
-    # model.summary()
     return model
 
 
@@ -130,18 +119,13 @@ def train(agent, overallReward):
     dones = json.loads(agentMemory.dones)
 
 
-    memoryDeque = deque(maxlen=10000)
+    memoryDeque = deque(maxlen=250000)
 
     for i in range(len(states)):
         memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
 
-    batch_size = 64
+    batch_size = 128 
     minibatch = random.sample(memoryDeque, batch_size)
-    # states = []
-    # actions = []
-    # rewards = []
-    # next_states = []
-    # dones = []
     everyTarget = []
     everyState = []
 
@@ -149,58 +133,24 @@ def train(agent, overallReward):
         target = reward
 
         if not done:
-            # x = np.amax(model.predict(next_state))
-            # y_state = model.predict(state)
-            # y = y_state[action]
-            # print(np.amax(model.predict(next_state)))
-            # print(model.predict(state)[action])
-            target = reward + float(agentHyperparameters.gamma) * np.amax(model.predict(next_state)[0])
+            next_state = np.array(next_state)
+            next_state = next_state.reshape(1, -1)
 
+            target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state))
+
+        state = np.array(state)
+        actionArray = [0 for _ in range(30)]
+        actionArray[action] = 1.0
+        state.extend(actionArray)
+        state = state.reshape(1, -1)
         target_f = model.predict(np.array(state))[0]
         target_f[action] = target
-        state = np.array(state)
-        state = state.reshape(1, -1)
         target_f = target_f.reshape(1, -1)
-        everyTarget.append(target_f)
-        everyState.append(state)
-
-        # print()
-        # print(type(state))
-        # print(type(target_f))
-        # print(target_f)
-
-        # model.fit(state, target_f, epochs=1, verbose=1)
 
 
-        # If Q-learning doesn't work well, use SARSA. I definitely wasn't doing either of these very correctly
-        # Q_s_t = model.predict(state)
-        #target = Q_s_t + agentHyperparameters.learning_rate(reward + float(agentHyperparameters.gamma) * model.predict(next_state) - Q_s_t)
-            
+        model.fit(state, target_f, epochs=1, verbose=1)
 
-       # states.append(state)
-       # actions.append(action)
-       # rewards.append(reward)
-       # next_states.append(next_state)
-       # dones.append(done)
-    model.fit(everyState, everyTarget, epochs=1, verbose=1)
-    #states = np.asarray(states).astype("float32")
-    #actions = np.asarray(actions)
-    #rewards = np.asarray(rewards)
-    #next_states = np.asarray(next_states).astype("float32")
-    #dones = np.asarray(dones)
 
-    # labels = model.predict(states)
-    # next_state_values = model.predict(next_states)
-
-    # batchSize = min(agentHyperparameters.batch_size, len(rewards))
-    # for i in range(batchSize):
-     #   action = actions[i]
-     #   labels[i][action] = rewards[i] + (
-     #       not dones[i] * float(agentHyperparameters.gamma) * max(next_state_values[i]))
-
-    # for i in range(len(states)):
-    #
-    # model.fit(x=states, y=labels, epochs=1, verbose=1)
     agentHyperparameters.learns += 1
 
     if agentHyperparameters.epsilon > agentHyperparameters.epsilon_min:
@@ -208,12 +158,13 @@ def train(agent, overallReward):
     agentHyperparameters.epsilon = max(agentHyperparameters.epsilon, agentHyperparameters.epsilon_min)
 
     model.save_weights('recentweights.hdf5')
+    model.save_weights('bestweights.hdf5')
 
     if overallReward > agentHyperparameters.bestReward or shouldSaveAnyways:
         print(f"Saving model from agent {agentHyperparameters.agent}")
         model.save_weights('bestweights.hdf5')
         agentHyperparameters.bestReward = overallReward
-
+    
     agentHyperparameters.save()
     agentMemory.save()
 
@@ -225,8 +176,6 @@ def train(agent, overallReward):
 
 @csrf_exempt
 def postState(request):
-    # This is where the training logic is going to go
-    # print(request)
     data = json.loads(request.body)
 
     if (request.method == 'POST'):
