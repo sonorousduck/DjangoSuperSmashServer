@@ -40,7 +40,7 @@ def add_experience(state, action, reward, next_state, done, previousAction, agen
     agentMemoryRewards = json.loads(agentMemory.rewards)
     agentMemoryNextStates = json.loads(agentMemory.next_states)
     agentMemoryDone = json.loads(agentMemory.dones)
-    agentMemoryPreviousActions = json.loads(agent.previous_actions)
+    agentMemoryPreviousActions = json.loads(agentMemory.previous_actions)
 
 
     for i in range(len(state)):
@@ -64,6 +64,8 @@ def add_experience(state, action, reward, next_state, done, previousAction, agen
         agentMemoryNextStates.pop()
     while len(agentMemoryDone) >= agentMemory.max_memory_len:
         agentMemoryDone.pop()
+    while len(agentMemoryPreviousActions) >= agentMemory.max_memory_len:
+        agentMemoryPreviousActions.pop()
 
 
     agentMemory.states = json.dumps(agentMemoryStates)
@@ -122,7 +124,7 @@ def train(agent, overallReward):
     rewards = json.loads(agentMemory.rewards)
     nextStates = json.loads(agentMemory.next_states)
     dones = json.loads(agentMemory.dones)
-    previousActions = json.loads(agent.previous_actions)
+    previousActions = json.loads(agentMemory.previous_actions)
 
     memoryDeque = deque(maxlen=250000)
 

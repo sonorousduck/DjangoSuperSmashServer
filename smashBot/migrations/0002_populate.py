@@ -11,7 +11,7 @@ def populate_db(apps, schema_editor):
     agent2parameters = AgentHyperParameters(agent=2, bestReward=0, epsilon=1)
 
     # agent1Memory = Memory(agent=1, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([[]]), dones=json.dumps([]))
-    agent2Memory = Memory(agent=2, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([]), dones=json.dumps([]))
+    agent2Memory = Memory(agent=2, states=json.dumps([]), actions=json.dumps([]), rewards=json.dumps([]), next_states=json.dumps([]), dones=json.dumps([]), previous_actions=json.dumps([]))
 
     # agent1parameters.save()
     agent2parameters.save()
