@@ -19,7 +19,6 @@ import numpy as np
 import random
 from .memory import AgentMemory
 from .models import AgentHyperparameters, Memory
-from schedule import Scheduler
 
 # Create your views here.
 
@@ -34,13 +33,15 @@ class ResponseThen(Response):
 
 
 
-def add_experience(state, action, reward, next_state, done, agent):
+def add_experience(state, action, reward, next_state, done, previousAction, agent):
     agentMemory = Memory.objects.get(agent=agent)
     agentMemoryStates = json.loads(agentMemory.states)
     agentMemoryActions = json.loads(agentMemory.actions)
     agentMemoryRewards = json.loads(agentMemory.rewards)
     agentMemoryNextStates = json.loads(agentMemory.next_states)
     agentMemoryDone = json.loads(agentMemory.dones)
+    agentMemoryPreviousActions = json.loads(agent.previous_actions)
+
 
     for i in range(len(state)):
         agentMemoryStates.insert(0, state[i])
@@ -48,6 +49,9 @@ def add_experience(state, action, reward, next_state, done, agent):
         agentMemoryRewards.insert(0, reward[i])
         agentMemoryNextStates.insert(0, next_state[i])
         agentMemoryDone.insert(0, done[i])
+        agentMemoryPreviousActions.insert(0, next_state[i])
+
+
 
 
     while len(agentMemoryStates) >= agentMemory.max_memory_len:
@@ -67,6 +71,7 @@ def add_experience(state, action, reward, next_state, done, agent):
     agentMemory.rewards = json.dumps(agentMemoryRewards)
     agentMemory.next_states = json.dumps(agentMemoryNextStates)
     agentMemory.dones = json.dumps(agentMemoryDone)
+    agentMemory.previous_actions = json.dumps(agentMemoryPreviousActions)
 
     agentMemory.save()
 
@@ -117,19 +122,19 @@ def train(agent, overallReward):
     rewards = json.loads(agentMemory.rewards)
     nextStates = json.loads(agentMemory.next_states)
     dones = json.loads(agentMemory.dones)
-
+    previousActions = json.loads(agent.previous_actions)
 
     memoryDeque = deque(maxlen=250000)
 
     for i in range(len(states)):
-        memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i]))
+        memoryDeque.append((states[i], actions[i], rewards[i], nextStates[i], dones[i], previousActions[i]))
 
     batch_size = 128 
     minibatch = random.sample(memoryDeque, batch_size)
     everyTarget = []
     everyState = []
 
-    for state, action, reward, next_state, done in minibatch:
+    for state, action, reward, next_state, done, previous_action in minibatch:
         target = reward
 
         if not done:
@@ -138,10 +143,10 @@ def train(agent, overallReward):
 
             target = reward + float(agentHyperparameters.gamma) * np.max(model.predict(next_state))
 
-        state = np.array(state)
-        actionArray = [0 for _ in range(30)]
-        actionArray[action] = 1.0
+        actionArray = [0.0 for _ in range(30)]
+        actionArray[previous_action] = 1.0
         state.extend(actionArray)
+        state = np.array(state)
         state = state.reshape(1, -1)
         target_f = model.predict(np.array(state))[0]
         target_f[action] = target
@@ -186,6 +191,7 @@ def postState(request):
         nextStates = data['nextStates']
         dones = data['dones']
         agent = data['agent']
+        previousActions = data['previousActions']
 
         overallReward = 0
         for reward in rewards:
@@ -196,7 +202,7 @@ def postState(request):
             f.write(str(overallReward) + '\n')
 
 
-        add_experience(states, actions, rewards, nextStates, dones, agent)
+        add_experience(states, actions, rewards, nextStates, dones, agent, previousActions)
         train(agent, overallReward)
 
         json_response = [{'success': "Success!"}]

@@ -22,6 +22,7 @@ class Memory(models.Model):
     actions = models.JSONField()
     rewards = models.JSONField()
     next_states = models.JSONField()
+    previous_actions = models.JSONField()
     dones = models.JSONField()
 
 
